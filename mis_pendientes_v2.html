@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Pendientes">
+<title>Mis Pendientes</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F5F2EC;
+    --surface: #FFFFFF;
+    --text: #1A1A1A;
+    --text-muted: #888880;
+    --border: rgba(0,0,0,0.08);
+    --red: #C84B31;
+    --red-bg: #FDF0ED;
+    --amber: #B5621E;
+    --amber-bg: #FDF5EC;
+    --green: #2D7A4F;
+    --green-bg: #EDF7F2;
+    --blue: #2B5FA5;
+    --blue-bg: #EDF2FB;
+    --gray: #666660;
+    --gray-bg: #F0EFE9;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'DM Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 100px;
+  }
+
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 16px 14px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+  }
+
+  .app-title {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 300;
+    color: var(--text);
+  }
+
+  .app-date {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    text-align: right;
+  }
+
+  .urgency-bar {
+    display: flex;
+    gap: 6px;
+  }
+
+  .urgency-pill {
+    flex: 1;
+    padding: 6px 4px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    transition: opacity 0.15s;
+  }
+
+  .urgency-pill.active { opacity: 1; border-color: currentColor; }
+  .urgency-pill:not(.active) { opacity: 0.45; }
+
+  .pill-red { background: var(--red-bg); color: var(--red); }
+  .pill-amber { background: var(--amber-bg); color: var(--amber); }
+  .pill-blue { background: var(--blue-bg); color: var(--blue); }
+  .pill-gray { background: var(--gray-bg); color: var(--gray); }
+  .pill-count { font-size: 16px; font-weight: 500; display: block; margin-bottom: 1px; }
+
+  .tabs {
+    display: flex;
+    padding: 12px 16px 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    gap: 0;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+
+  .tab {
+    padding: 8px 14px;
+    font-size: 11px;
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+
+  .tab.active { color: var(--text); border-bottom-color: var(--text); }
+
+  .content { padding: 16px; }
+
+  .section-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin: 20px 0 8px;
+  }
+  .section-label:first-child { margin-top: 4px; }
+
+  .task-card {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .task-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    border-radius: 12px 0 0 12px;
+  }
+
+  .task-card.urgente::before { background: var(--red); }
+  .task-card.proximo::before { background: var(--amber); }
+  .task-card.planificado::before { background: var(--blue); }
+  .task-card.espera::before { background: var(--gray); }
+  .task-card.hecho { opacity: 0.4; }
+  .task-card.hecho .task-text { text-decoration: line-through; }
+
+  .checkbox {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border);
+    flex-shrink: 0;
+    margin-top: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .task-card.urgente .checkbox { border-color: var(--red); }
+  .task-card.proximo .checkbox { border-color: var(--amber); }
+  .task-card.planificado .checkbox { border-color: var(--blue); }
+  .checkbox.checked { background: var(--green); border-color: var(--green); }
+  .checkbox.checked::after { content: '✓'; color: white; font-size: 11px; }
+
+  .task-body { flex: 1; min-width: 0; }
+
+  .task-text {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+    margin-bottom: 6px;
+  }
+
+  .task-meta {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .area-tag {
+    font-size: 9px;
+    padding: 2px 7px;
+    border-radius: 20px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  .tag-icat { background: #F0EDFC; color: #5B3FA6; }
+  .tag-psico { background: #E8F7F2; color: #1D7A5C; }
+  .tag-curso { background: #FDF5EC; color: #B5621E; }
+  .tag-podcast { background: #FDEEED; color: #A63535; }
+  .tag-grupo { background: #EDF2FB; color: #2B5FA5; }
+  .tag-habito { background: #EDF7F2; color: #2D7A4F; }
+
+  .date-tag { font-size: 10px; color: var(--text-muted); }
+  .date-tag.rojo { color: var(--red); font-weight: 500; }
+  .date-tag.ambar { color: var(--amber); }
+
+  .blocker-tag {
+    font-size: 9px;
+    background: #FDF0ED;
+    color: var(--red);
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+
+  .add-btn {
+    position: fixed;
+    bottom: 24px; right: 20px;
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: var(--text);
+    color: white;
+    font-size: 28px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    transition: transform 0.15s;
+    line-height: 1;
+  }
+
+  .add-btn:active { transform: scale(0.92); }
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 200;
+    display: flex;
+    align-items: flex-end;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--surface);
+    border-radius: 20px 20px 0 0;
+    padding: 20px 16px 40px;
+    width: 100%;
+    transform: translateY(100%);
+    transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .modal-overlay.open .modal { transform: translateY(0); }
+
+  .modal-title {
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    font-weight: 300;
+    margin-bottom: 16px;
+  }
+
+  .modal input, .modal select {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 14px;
+    font-family: 'DM Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    margin-bottom: 10px;
+    outline: none;
+    -webkit-appearance: none;
+  }
+
+  .modal-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    display: block;
+  }
+
+  .deadline-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .deadline-opt {
+    padding: 10px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    text-align: center;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    color: var(--text-muted);
+    transition: all 0.15s;
+  }
+
+  .deadline-opt.selected {
+    border-color: var(--text);
+    color: var(--text);
+    background: var(--bg);
+    font-weight: 500;
+  }
+
+  .modal-save {
+    width: 100%;
+    padding: 14px;
+    background: var(--text);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 14px;
+    font-family: 'DM Mono', monospace;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.7;
+  }
+
+  .empty-state .big { font-size: 32px; margin-bottom: 12px; }
+
+  .safari-banner {
+    background: #1A1A1A;
+    color: white;
+    padding: 12px 16px;
+    font-size: 12px;
+    text-align: center;
+    line-height: 1.6;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="safari-banner" id="safari-banner">
+  Para guardar como app: toca <strong>Compartir ↑</strong> → <strong>"Añadir a pantalla de inicio"</strong>
+</div>
+
+<div class="header">
+  <div class="header-top">
+    <div class="app-title">Mis pendientes</div>
+    <div class="app-date" id="fecha-hoy"></div>
+  </div>
+  <div class="urgency-bar">
+    <div class="urgency-pill pill-red active" onclick="filtrar('urgente')" id="pill-urgente">
+      <span class="pill-count" id="count-urgente">0</span>hoy
+    </div>
+    <div class="urgency-pill pill-amber" onclick="filtrar('proximo')" id="pill-proximo">
+      <span class="pill-count" id="count-proximo">0</span>pronto
+    </div>
+    <div class="urgency-pill pill-blue" onclick="filtrar('planificado')" id="pill-planificado">
+      <span class="pill-count" id="count-planificado">0</span>planeado
+    </div>
+    <div class="urgency-pill pill-gray" onclick="filtrar('espera')" id="pill-espera">
+      <span class="pill-count" id="count-espera">0</span>en espera
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="cambiarTab('todos',this)">Todos</div>
+  <div class="tab" onclick="cambiarTab('ICATQR',this)">ICATQR</div>
+  <div class="tab" onclick="cambiarTab('Psicoterapia',this)">Psicoterapia</div>
+  <div class="tab" onclick="cambiarTab('Curso online',this)">Curso</div>
+  <div class="tab" onclick="cambiarTab('Podcast',this)">Podcast</div>
+  <div class="tab" onclick="cambiarTab('Grupo reflexivo',this)">Grupo</div>
+  <div class="tab" onclick="cambiarTab('Hábito',this)">Hábitos</div>
+</div>
+
+<div class="content" id="lista"></div>
+
+<button class="add-btn" onclick="abrirModal()">+</button>
+
+<div class="modal-overlay" id="modal-overlay" onclick="cerrarSiOverlay(event)">
+  <div class="modal">
+    <div class="modal-title">Nuevo pendiente</div>
+    <span class="modal-label">¿Qué hay que hacer?</span>
+    <input type="text" id="input-texto" placeholder="Escribe aquí..."/>
+    <span class="modal-label">¿A qué área pertenece?</span>
+    <select id="input-area">
+      <option value="ICATQR">ICATQR</option>
+      <option value="Psicoterapia">Psicoterapia</option>
+      <option value="Curso online">Curso online</option>
+      <option value="Podcast">Podcast</option>
+      <option value="Grupo reflexivo">Grupo reflexivo</option>
+      <option value="Hábito">Hábito</option>
+    </select>
+    <span class="modal-label">¿Cuándo explota si no está listo?</span>
+    <div class="deadline-options">
+      <div class="deadline-opt selected" onclick="elegirDeadline('esta-semana',this)">Esta semana</div>
+      <div class="deadline-opt" onclick="elegirDeadline('15-dias',this)">En 15 días</div>
+      <div class="deadline-opt" onclick="elegirDeadline('este-mes',this)">Este mes</div>
+      <div class="deadline-opt" onclick="elegirDeadline('sin-fecha',this)">Sin fecha</div>
+    </div>
+    <span class="modal-label">¿Está bloqueada por algo? (opcional)</span>
+    <input type="text" id="input-bloqueo" placeholder="¿Qué lo bloquea?"/>
+    <button class="modal-save" onclick="guardarPendiente()">Guardar pendiente</button>
+  </div>
+</div>
+
+<script>
+// ── DATOS ────────────────────────────────────────────────────────
+const STORAGE_KEY = 'pendientes_v2';
+const hoy = new Date();
+hoy.setHours(0,0,0,0);
+
+const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const diasSemana = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+
+function fechaRelativa(dias) {
+  const d = new Date(hoy);
+  d.setDate(d.getDate() + dias);
+  return d.toISOString().split('T')[0];
+}
+
+const DATOS_INICIALES = [
+  { id:1,  texto:"Verificar presentación vs carta descriptiva EC0217.01", area:"ICATQR", deadline:fechaRelativa(0), bloqueo:null, hecho:false },
+  { id:2,  texto:"Documentos impresos EC0217.01 — en espera de respuesta", area:"ICATQR", deadline:fechaRelativa(1), bloqueo:"Ya enviado ✓ esperando respuesta", hecho:false },
+  { id:3,  texto:"Terminar desarrollo sesiones 2, 3 y 4 — formato ICATQR", area:"ICATQR", deadline:fechaRelativa(3), bloqueo:null, hecho:false },
+  { id:4,  texto:"Sesión psicoterapéutica — 12:00 am", area:"Psicoterapia", deadline:fechaRelativa(1), bloqueo:null, hecho:false },
+  { id:5,  texto:"Reunión con Hilario — podcast", area:"Podcast", deadline:fechaRelativa(1), bloqueo:null, hecho:false },
+  { id:6,  texto:"Grabar video 4.3 del módulo 4", area:"Curso online", deadline:fechaRelativa(2), bloqueo:null, hecho:false },
+  { id:7,  texto:"Taller — 1:00 a 8:00 pm", area:"ICATQR", deadline:fechaRelativa(3), bloqueo:null, hecho:false },
+  { id:8,  texto:"Ensayo del taller completo — cronometrar secciones", area:"ICATQR", deadline:fechaRelativa(12), bloqueo:"Requiere presentación verificada primero", hecho:false },
+  { id:9,  texto:"Evaluación EC0217.01", area:"ICATQR", deadline:fechaRelativa(15), bloqueo:"Requiere formato ICATQR terminado + ensayo", hecho:false },
+  { id:10, texto:"Curso alineación EC0539 — 4 sesiones", area:"ICATQR", deadline:fechaRelativa(19), bloqueo:"Requiere documento de alineación validado", hecho:false },
+  { id:11, texto:"Plan de evaluación — 3 participantes", area:"ICATQR", deadline:fechaRelativa(27), bloqueo:null, hecho:false },
+  { id:12, texto:"Evaluación individual — 3 personas", area:"ICATQR", deadline:fechaRelativa(37), bloqueo:null, hecho:false },
+  { id:13, texto:"Grabar videos 4.4, 4.5, 4.6 + módulo 5 completo", area:"Curso online", deadline:fechaRelativa(30), bloqueo:null, hecho:false },
+  { id:14, texto:"Grabar presentación del curso", area:"Curso online", deadline:fechaRelativa(35), bloqueo:"Requiere todos los videos grabados", hecho:false },
+  { id:15, texto:"Verificar que workbook coincida con actividades del curso", area:"Curso online", deadline:fechaRelativa(35), bloqueo:"Requiere videos terminados", hecho:false },
+  { id:16, texto:"Subir evaluaciones al sistema ICATQR", area:"ICATQR", deadline:null, bloqueo:"En espera de recibir oficio", hecho:false },
+  { id:17, texto:"Apertura grupo reflexivo de acompañamiento", area:"Grupo reflexivo", deadline:null, bloqueo:"Bloqueado: pagar $5,000 al abogado", hecho:false },
+  { id:18, texto:"Curso Norma 035", area:"Grupo reflexivo", deadline:null, bloqueo:"En espera de recibir pago", hecho:false },
+  { id:19, texto:"Lectura 20 min — El poder del aquí y el ahora", area:"Hábito", deadline:null, bloqueo:null, hecho:false },
+  { id:20, texto:"Seguimiento libro Claves psicoterapéuticas — De Shazer", area:"Hábito", deadline:null, bloqueo:null, hecho:false },
+];
+
+// ── STORAGE ROBUSTO ──────────────────────────────────────────────
+// Intenta localStorage, si falla usa variable en memoria
+let memoryStore = null;
+
+function cargarDatos() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  if (memoryStore) return memoryStore;
+  return JSON.parse(JSON.stringify(DATOS_INICIALES));
+}
+
+function guardarDatos(datos) {
+  memoryStore = datos;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(datos));
+  } catch(e) {
+    // Safari privado — usa solo memoria
+  }
+}
+
+// Verificar si localStorage funciona
+function testStorage() {
+  try {
+    localStorage.setItem('__test__', '1');
+    localStorage.removeItem('__test__');
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+// ── ESTADO ───────────────────────────────────────────────────────
+let pendientes = cargarDatos();
+let filtroActual = 'urgente';
+let tabActual = 'todos';
+let deadlineSeleccionado = 'esta-semana';
+
+// ── FECHA ────────────────────────────────────────────────────────
+document.getElementById('fecha-hoy').innerHTML =
+  diasSemana[new Date().getDay()] + ' ' + new Date().getDate() + '<br>' + meses[new Date().getMonth()];
+
+// Safari banner
+const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+if (isSafari && !window.navigator.standalone) {
+  document.getElementById('safari-banner').style.display = 'block';
+}
+
+// ── URGENCIA ─────────────────────────────────────────────────────
+function calcularUrgencia(p) {
+  if (!p.deadline) return 'espera';
+  const d = new Date(p.deadline);
+  d.setHours(0,0,0,0);
+  const diff = Math.round((d - hoy) / 86400000);
+  if (diff <= 3) return 'urgente';
+  if (diff <= 15) return 'proximo';
+  return 'planificado';
+}
+
+function formatearFecha(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  d.setHours(0,0,0,0);
+  const diff = Math.round((d - hoy) / 86400000);
+  if (diff < 0) return { texto: 'vencida', clase: 'rojo' };
+  if (diff === 0) return { texto: 'hoy', clase: 'rojo' };
+  if (diff === 1) return { texto: 'mañana', clase: 'rojo' };
+  if (diff <= 7) return { texto: 'en ' + diff + ' días', clase: 'ambar' };
+  return { texto: d.getDate() + ' ' + meses[d.getMonth()], clase: '' };
+}
+
+// ── RENDER ───────────────────────────────────────────────────────
+function renderizar() {
+  pendientes.forEach(p => { if (!p.hecho) p.urgencia = calcularUrgencia(p); });
+  guardarDatos(pendientes);
+
+  const activos = pendientes.filter(p => !p.hecho);
+  ['urgente','proximo','planificado','espera'].forEach(u => {
+    document.getElementById('count-' + u).textContent = activos.filter(p => p.urgencia === u).length;
+  });
+
+  let lista = pendientes.filter(p => {
+    const uMatch = p.urgencia === filtroActual;
+    const tMatch = tabActual === 'todos' || p.area === tabActual;
+    return uMatch && tMatch;
+  });
+
+  const cont = document.getElementById('lista');
+
+  if (lista.length === 0) {
+    cont.innerHTML = '<div class="empty-state"><div class="big">✓</div>Nada pendiente aquí.<br>Bien hecho.</div>';
+    return;
+  }
+
+  const vivos = lista.filter(p => !p.hecho);
+  const hechos = lista.filter(p => p.hecho);
+  let html = '';
+  if (vivos.length) html += renderLista(vivos);
+  if (hechos.length) html += '<div class="section-label">completadas</div>' + renderLista(hechos);
+  cont.innerHTML = html;
+}
+
+function renderLista(lista) {
+  const areaClass = {
+    'ICATQR':'tag-icat','Psicoterapia':'tag-psico','Curso online':'tag-curso',
+    'Podcast':'tag-podcast','Grupo reflexivo':'tag-grupo','Hábito':'tag-habito'
+  };
+  return lista.map(p => {
+    const fecha = p.deadline ? formatearFecha(p.deadline) : null;
+    return `<div class="task-card ${p.urgencia} ${p.hecho?'hecho':''}" onclick="toggleHecho(${p.id})">
+      <div class="checkbox ${p.hecho?'checked':''}"></div>
+      <div class="task-body">
+        <div class="task-text">${p.texto}</div>
+        <div class="task-meta">
+          <span class="area-tag ${areaClass[p.area]||'tag-icat'}">${p.area}</span>
+          ${fecha?`<span class="date-tag ${fecha.clase}">${fecha.texto}</span>`:''}
+          ${p.bloqueo?`<span class="blocker-tag">⚠ ${p.bloqueo}</span>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── ACCIONES ─────────────────────────────────────────────────────
+function toggleHecho(id) {
+  const p = pendientes.find(x => x.id === id);
+  if (p) { p.hecho = !p.hecho; renderizar(); }
+}
+
+function filtrar(u) {
+  filtroActual = u;
+  document.querySelectorAll('.urgency-pill').forEach(el => el.classList.remove('active'));
+  document.getElementById('pill-' + u).classList.add('active');
+  renderizar();
+}
+
+function cambiarTab(area, el) {
+  tabActual = area;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderizar();
+}
+
+// ── MODAL ────────────────────────────────────────────────────────
+function abrirModal() {
+  document.getElementById('modal-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('input-texto').focus(), 300);
+}
+
+function cerrarSiOverlay(e) {
+  if (e.target === document.getElementById('modal-overlay')) cerrarModal();
+}
+
+function cerrarModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  document.getElementById('input-texto').value = '';
+  document.getElementById('input-bloqueo').value = '';
+  document.getElementById('input-area').value = 'ICATQR';
+  deadlineSeleccionado = 'esta-semana';
+  document.querySelectorAll('.deadline-opt').forEach(el => el.classList.remove('selected'));
+  document.querySelectorAll('.deadline-opt')[0].classList.add('selected');
+}
+
+function elegirDeadline(v, el) {
+  deadlineSeleccionado = v;
+  document.querySelectorAll('.deadline-opt').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function deadlineAFecha(op) {
+  const map = {'esta-semana':5,'15-dias':15,'este-mes':30,'sin-fecha':null};
+  const d = map[op];
+  return d !== null ? fechaRelativa(d) : null;
+}
+
+function guardarPendiente() {
+  const texto = document.getElementById('input-texto').value.trim();
+  if (!texto) { document.getElementById('input-texto').focus(); return; }
+  pendientes.unshift({
+    id: Date.now(),
+    texto,
+    area: document.getElementById('input-area').value,
+    deadline: deadlineAFecha(deadlineSeleccionado),
+    urgencia: 'espera',
+    bloqueo: document.getElementById('input-bloqueo').value.trim() || null,
+    hecho: false
+  });
+  cerrarModal();
+  filtrar('urgente');
+}
+
+// ── INIT ─────────────────────────────────────────────────────────
+if (!testStorage()) {
+  console.log('localStorage no disponible — usando memoria');
+}
+renderizar();
+</script>
+</body>
+</html>
